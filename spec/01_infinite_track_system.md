@@ -47,3 +47,9 @@ function handleObstacleCollision(player, obstacle) {
 
 ```
 
+## Implementation Notes
+Interesting runtime detail: the obstacles were spawning correctly, but they were initially hard to notice in normal play because the first visible cone was small and close in color to player 2. The implementation was adjusted to render cones as bright warning triangles and barriers with higher contrast so they read as hazards without relying on debug outlines.
+
+Main deviation from the pseudo-code: the final pooling logic does not rely on simply setting `obstacle.active = false`. Phaser Arcade bodies on these shape-based game objects needed explicit `active`, `visible`, and `body.enable` toggling to recycle cleanly. The collision callback was updated to route through a shared hide/recycle helper for consistency with the object pool lifecycle.
+
+Another practical addition was startup console logging of vehicle and obstacle positions. That was not in the original spec, but it was useful for verifying that deterministic spawning was working even when the visual presentation was misleading.
