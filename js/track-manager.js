@@ -75,7 +75,7 @@
 
         createObstacleTriggerZone(type) {
             const obstacleConfig = namespace.CONFIG.obstacle_types[type];
-            const triggerZoneHeight = 96;
+            const triggerZoneHeight = 160;
             const triggerZoneWidth = obstacleConfig.width_px + 24;
             const triggerZone = this.scene.add.zone(-1000, -1000, triggerZoneWidth, triggerZoneHeight);
 
@@ -185,7 +185,7 @@
             const floorTop = namespace.CONFIG.world.floor_y - 40;
             const y = floorTop - (obstacleConfig.height_px / 2);
             const triggerZone = obstacle.triggerZone;
-            const triggerZoneY = y - (obstacleConfig.height_px / 2) - 48;
+            const triggerZoneY = y - (obstacleConfig.height_px / 2) - (triggerZone.height / 2) - 8;
 
             obstacle.setPosition(x, y);
             obstacle.setActive(true);

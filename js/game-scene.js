@@ -149,6 +149,7 @@
             const penaltyMultiplier = 1 - (obstacle.getData("speedPenaltyPercent") / 100);
             const nextVelocityX = Math.max(0, player.body.velocity.x * penaltyMultiplier);
 
+            this.showBonkPopup(player);
             player.body.setVelocityX(nextVelocityX);
             this.trackManager.hideObstacle(obstacle);
         }
@@ -193,11 +194,66 @@
         }
 
         awardBoostCharge(player, amount = namespace.CONFIG.boost_economy.jump_clearance_reward) {
-            return this.setPlayerBoostCharges(player, player.boostCharges + amount);
+            const previousCharges = player.boostCharges;
+            const nextCharges = this.setPlayerBoostCharges(player, player.boostCharges + amount);
+
+            if (nextCharges > previousCharges) {
+                this.showBoostRefillPopup(player, nextCharges - previousCharges);
+                this.events.emit("boost-refilled", {
+                    player: this.getPlayerNumber(player),
+                    charges: nextCharges
+                });
+            }
+
+            return nextCharges;
         }
 
         getPlayerNumber(player) {
             return player.playerNumber ?? (player === this.player1 ? 1 : 2);
+        }
+
+        showBoostRefillPopup(player, amount) {
+            const popup = this.add.text(player.x, player.y - 90, `BOOST +${amount}`, {
+                fontFamily: "monospace",
+                fontSize: "18px",
+                color: "#f8f32b",
+                stroke: "#1a1a2e",
+                strokeThickness: 4
+            });
+            popup.setOrigin(0.5, 0.5);
+            popup.setDepth(1000);
+
+            this.tweens.add({
+                targets: popup,
+                y: popup.y - 30,
+                alpha: 0,
+                duration: 700,
+                ease: "Sine.easeOut",
+                onComplete: () => popup.destroy()
+            });
+        }
+
+        showBonkPopup(player) {
+            const popup = this.add.text(player.x, player.y - 76, "BONK!", {
+                fontFamily: "monospace",
+                fontSize: "20px",
+                color: "#ffffff",
+                stroke: "#ff355e",
+                strokeThickness: 5
+            });
+            popup.setOrigin(0.5, 0.5);
+            popup.setDepth(1000);
+
+            this.tweens.add({
+                targets: popup,
+                y: popup.y - 24,
+                alpha: 0,
+                scaleX: 1.2,
+                scaleY: 1.2,
+                duration: 520,
+                ease: "Back.easeOut",
+                onComplete: () => popup.destroy()
+            });
         }
 
         beginMatchCountdown() {

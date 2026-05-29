@@ -67,6 +67,7 @@
             this.gameScene.events.on("match-time-updated", this.setTimerText, this);
             this.gameScene.events.on("match-finished", this.showResultText, this);
             this.gameScene.events.on("boost-changed", this.onBoostChanged, this);
+            this.gameScene.events.on("boost-refilled", this.onBoostRefilled, this);
 
             this.syncFromGameScene();
         }
@@ -158,6 +159,31 @@
 
         onBoostChanged(event) {
             this.setBoostRow(event.player, event.charges);
+        }
+
+        onBoostRefilled(event) {
+            this.flashBoostRow(event.player);
+        }
+
+        flashBoostRow(playerNumber) {
+            const row = this.boostRows[playerNumber];
+            if (!row) {
+                return;
+            }
+
+            this.tweens.add({
+                targets: [row.label, ...row.bars],
+                scaleX: 1.08,
+                scaleY: 1.08,
+                duration: 110,
+                yoyo: true,
+                ease: "Sine.easeOut"
+            });
+
+            row.label.setColor("#f8f32b");
+            this.time.delayedCall(140, () => {
+                row.label.setColor("#ffffff");
+            });
         }
     }
 

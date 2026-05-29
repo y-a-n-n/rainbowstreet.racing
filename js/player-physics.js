@@ -70,6 +70,13 @@
     }
 
     function handlePlayerCollision(pA, pB) {
+        if (pA.scene && typeof pA.scene.showBonkPopup === "function") {
+            pA.scene.showBonkPopup(pA);
+        }
+        if (pB.scene && typeof pB.scene.showBonkPopup === "function") {
+            pB.scene.showBonkPopup(pB);
+        }
+
         const topPlayer = pA.y < pB.y ? pA : pB;
         const bottomPlayer = pA.y < pB.y ? pB : pA;
         const isFalling = topPlayer.body.velocity.y > 0;
