@@ -4,12 +4,22 @@
         player.body.setMaxVelocity(namespace.CONFIG.base_movement.max_speed_px_s, 2000);
     }
 
-    function handleMovement(player, keys, modifier = 1, matchState = namespace.MATCH_STATE.RACING) {
-        const acceleration = namespace.CONFIG.base_movement.acceleration_px_s * modifier;
-        const maxSpeed = namespace.CONFIG.base_movement.max_speed_px_s * modifier;
-        const isGrounded = player.body.blocked.down || player.body.touching.down;
+    function initializeBoostState(player, startingCharges) {
+        player.state = "NORMAL";
+        player.boostCharges = startingCharges;
+        player.boostTimer = null;
+    }
 
-        player.body.setMaxVelocity(maxSpeed, 2000);
+    function tryActivateBoost(player) {
+        if (!player.scene || typeof player.scene.startPlayerBoost !== "function") {
+            return false;
+        }
+
+        return player.scene.startPlayerBoost(player);
+    }
+
+    function handleMovement(player, keys, modifier = 1, matchState = namespace.MATCH_STATE.RACING) {
+        const isGrounded = player.body.blocked.down || player.body.touching.down;
 
         if (matchState !== namespace.MATCH_STATE.RACING) {
             player.body.setAccelerationX(0);
@@ -22,6 +32,18 @@
             }
 
             return;
+        }
+
+        const boostActivated = Phaser.Input.Keyboard.JustDown(keys.boost) && tryActivateBoost(player);
+        const boostMultiplier = player.state === "BOOSTING" ? namespace.CONFIG.boost_economy.speed_multiplier : 1;
+        const effectiveModifier = modifier * boostMultiplier;
+        const acceleration = namespace.CONFIG.base_movement.acceleration_px_s * effectiveModifier;
+        const maxSpeed = namespace.CONFIG.base_movement.max_speed_px_s * effectiveModifier;
+
+        player.body.setMaxVelocity(maxSpeed, 2000);
+
+        if (boostActivated) {
+            player.body.setVelocityX(maxSpeed);
         }
 
         if (keys.accel.isDown) {
@@ -37,17 +59,13 @@
             }
         } else {
             player.body.setAccelerationX(0);
-            if (isGrounded) {
+            if (isGrounded && !boostActivated && player.state !== "BOOSTING") {
                 player.body.setVelocityX(player.body.velocity.x * namespace.CONFIG.base_movement.friction_ground);
             }
         }
 
         if (Phaser.Input.Keyboard.JustDown(keys.jump) && isGrounded) {
             player.body.setVelocityY(namespace.CONFIG.jumping.jump_velocity_y_px_s);
-        }
-
-        if (Phaser.Input.Keyboard.JustDown(keys.boost)) {
-            console.log("Boost triggered!");
         }
     }
 
@@ -74,6 +92,8 @@
     }
 
     namespace.setupPlayerPhysics = setupPlayerPhysics;
+    namespace.initializeBoostState = initializeBoostState;
     namespace.handleMovement = handleMovement;
     namespace.handlePlayerCollision = handlePlayerCollision;
+    namespace.tryActivateBoost = tryActivateBoost;
 })(window.RainbowStreet = window.RainbowStreet || {});

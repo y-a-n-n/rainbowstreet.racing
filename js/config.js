@@ -28,6 +28,13 @@
             perfect_launch_window_ms: 150,
             perfect_launch_multiplier: 1.5
         },
+        boost_economy: {
+            max_bars: 3,
+            duration_ms: 1200,
+            speed_multiplier: 1.8,
+            starting_bars: 2,
+            jump_clearance_reward: 1
+        },
         match_duration_ms: 300000,
         track_system: {
             pool_size_per_type: 20,

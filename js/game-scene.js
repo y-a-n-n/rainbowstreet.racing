@@ -52,10 +52,14 @@
             this.player1.setOrigin(0.5, 0.72);
             this.physics.add.existing(this.player1);
             this.player1.body.setSize(112, 44, true);
+            this.player1.playerNumber = 1;
+            namespace.initializeBoostState(this.player1, namespace.CONFIG.boost_economy.starting_bars);
             namespace.setupPlayerPhysics(this.player1);
 
             this.player2 = this.add.rectangle(900, 500, 120, 60, 0xff7f50);
             this.physics.add.existing(this.player2);
+            this.player2.playerNumber = 2;
+            namespace.initializeBoostState(this.player2, namespace.CONFIG.boost_economy.starting_bars);
             namespace.setupPlayerPhysics(this.player2);
         }
 
@@ -147,6 +151,53 @@
 
             player.body.setVelocityX(nextVelocityX);
             this.trackManager.hideObstacle(obstacle);
+        }
+
+        startPlayerBoost(player) {
+            if (player.state !== "NORMAL" || player.boostCharges <= 0) {
+                return false;
+            }
+
+            this.setPlayerBoostCharges(player, player.boostCharges - 1);
+            player.state = "BOOSTING";
+
+            if (player.boostTimer) {
+                player.boostTimer.remove(false);
+                player.boostTimer = null;
+            }
+
+            player.boostTimer = this.time.delayedCall(namespace.CONFIG.boost_economy.duration_ms, () => {
+                if (player.state === "BOOSTING") {
+                    player.state = "NORMAL";
+                }
+                player.boostTimer = null;
+            });
+
+            return true;
+        }
+
+        setPlayerBoostCharges(player, nextCharges) {
+            const cappedCharges = Phaser.Math.Clamp(nextCharges, 0, namespace.CONFIG.boost_economy.max_bars);
+
+            if (player.boostCharges === cappedCharges) {
+                return cappedCharges;
+            }
+
+            player.boostCharges = cappedCharges;
+            this.events.emit("boost-changed", {
+                player: this.getPlayerNumber(player),
+                charges: cappedCharges
+            });
+
+            return cappedCharges;
+        }
+
+        awardBoostCharge(player, amount = namespace.CONFIG.boost_economy.jump_clearance_reward) {
+            return this.setPlayerBoostCharges(player, player.boostCharges + amount);
+        }
+
+        getPlayerNumber(player) {
+            return player.playerNumber ?? (player === this.player1 ? 1 : 2);
         }
 
         beginMatchCountdown() {
@@ -248,6 +299,19 @@
                 timerText: namespace.formatMatchTime(this.remainingMatchTimeMs),
                 remainingMatchTimeMs: this.remainingMatchTimeMs,
                 winnerText: this.winnerText
+            };
+        }
+
+        getBoostDebugState() {
+            return {
+                player1: {
+                    charges: this.player1.boostCharges,
+                    state: this.player1.state
+                },
+                player2: {
+                    charges: this.player2.boostCharges,
+                    state: this.player2.state
+                }
             };
         }
     }

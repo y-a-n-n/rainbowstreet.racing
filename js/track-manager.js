@@ -65,11 +65,34 @@
             obstacle.body.setImmovable(true);
             obstacle.setData("obstacleType", type);
             obstacle.setData("speedPenaltyPercent", obstacleConfig.speed_penalty_percent);
+            obstacle.triggerZone = this.createObstacleTriggerZone(type);
             obstacle.setActive(false);
             obstacle.setVisible(false);
             obstacle.body.enable = false;
 
             return obstacle;
+        }
+
+        createObstacleTriggerZone(type) {
+            const obstacleConfig = namespace.CONFIG.obstacle_types[type];
+            const triggerZoneHeight = 96;
+            const triggerZoneWidth = obstacleConfig.width_px + 24;
+            const triggerZone = this.scene.add.zone(-1000, -1000, triggerZoneWidth, triggerZoneHeight);
+
+            this.scene.physics.add.existing(triggerZone);
+            triggerZone.body.setAllowGravity(false);
+            triggerZone.body.setImmovable(true);
+            triggerZone.body.setSize(triggerZoneWidth, triggerZoneHeight, true);
+            triggerZone.setActive(false);
+            triggerZone.setVisible(false);
+            triggerZone.body.enable = false;
+            triggerZone.setData("awardedPlayers", { 1: false, 2: false });
+
+            for (const player of this.players) {
+                this.scene.physics.add.overlap(player, triggerZone, this.handleObstacleTriggerOverlap, null, this);
+            }
+
+            return triggerZone;
         }
 
         recycleChunksIfNeeded() {
@@ -161,6 +184,8 @@
             const obstacleConfig = namespace.CONFIG.obstacle_types[type];
             const floorTop = namespace.CONFIG.world.floor_y - 40;
             const y = floorTop - (obstacleConfig.height_px / 2);
+            const triggerZone = obstacle.triggerZone;
+            const triggerZoneY = y - (obstacleConfig.height_px / 2) - 48;
 
             obstacle.setPosition(x, y);
             obstacle.setActive(true);
@@ -172,6 +197,12 @@
             obstacle.body.setSize(obstacleConfig.width_px, obstacleConfig.height_px, true);
             obstacle.body.setOffset(-obstacleConfig.width_px / 2, -obstacleConfig.height_px / 2);
             obstacle.body.updateFromGameObject();
+
+            triggerZone.setPosition(x, triggerZoneY);
+            triggerZone.setActive(true);
+            triggerZone.body.enable = true;
+            triggerZone.setData("awardedPlayers", { 1: false, 2: false });
+            triggerZone.body.updateFromGameObject();
         }
 
         clearChunkObstacles(chunk) {
@@ -203,9 +234,48 @@
         }
 
         hideObstacle(obstacle) {
+            if (obstacle.triggerZone) {
+                obstacle.triggerZone.setActive(false);
+                obstacle.triggerZone.body.enable = false;
+                obstacle.triggerZone.setVisible(false);
+                obstacle.triggerZone.body.updateFromGameObject();
+            }
+
             obstacle.setActive(false);
             obstacle.setVisible(false);
             obstacle.body.enable = false;
+        }
+
+        handleObstacleTriggerOverlap(player, triggerZone) {
+            if (!player.active || !triggerZone.active) {
+                return;
+            }
+
+            const playerNumber = player.playerNumber ?? (player === this.players[0] ? 1 : 2);
+            const awardedPlayers = triggerZone.getData("awardedPlayers") ?? { 1: false, 2: false };
+            const obstacle = this.getObstacleForTriggerZone(triggerZone);
+            const isGrounded = player.body.blocked.down || player.body.touching.down;
+
+            if (!obstacle || !obstacle.active || awardedPlayers[playerNumber] || isGrounded) {
+                return;
+            }
+
+            if (Math.abs(player.body.velocity.y) < 1) {
+                return;
+            }
+
+            if (player.body.bottom > obstacle.body.top + 12) {
+                return;
+            }
+
+            awardedPlayers[playerNumber] = true;
+            triggerZone.setData("awardedPlayers", awardedPlayers);
+            this.scene.awardBoostCharge(player);
+        }
+
+        getObstacleForTriggerZone(triggerZone) {
+            const allObstacles = [...this.conePool.getChildren(), ...this.barrierPool.getChildren()];
+            return allObstacles.find((obstacle) => obstacle.triggerZone === triggerZone) ?? null;
         }
 
         syncWorldBounds() {

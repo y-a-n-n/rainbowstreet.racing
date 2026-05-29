@@ -6,6 +6,7 @@
 
         create() {
             this.gameScene = this.scene.get("GameScene");
+            this.boostRows = {};
 
             this.divider = this.add.rectangle(
                 this.scale.width / 2,
@@ -29,6 +30,9 @@
                 color: "#78f7ff"
             });
             this.distanceLabel.setScrollFactor(0);
+
+            this.createBoostRow(1, 24, 88, 0x78f7ff, "P1 BOOST", "left");
+            this.createBoostRow(2, this.scale.width - 24, 20, 0xff7f50, "P2 BOOST", "right");
 
             this.timerLabel = this.add.text(this.scale.width / 2, 18, "", {
                 fontFamily: "monospace",
@@ -62,6 +66,7 @@
             this.gameScene.events.on("countdown-changed", this.setCountdownText, this);
             this.gameScene.events.on("match-time-updated", this.setTimerText, this);
             this.gameScene.events.on("match-finished", this.showResultText, this);
+            this.gameScene.events.on("boost-changed", this.onBoostChanged, this);
 
             this.syncFromGameScene();
         }
@@ -85,6 +90,10 @@
             this.setCountdownText(matchState.countdownText);
             this.setTimerText(matchState.timerText);
             this.showResultText(matchState.winnerText);
+
+            const boostState = this.gameScene.getBoostDebugState();
+            this.setBoostRow(1, boostState.player1.charges);
+            this.setBoostRow(2, boostState.player2.charges);
         }
 
         syncMatchState(matchState) {
@@ -105,6 +114,50 @@
         showResultText(text) {
             this.resultLabel.setText(text);
             this.resultLabel.setVisible(Boolean(text));
+        }
+
+        createBoostRow(playerNumber, x, y, accentColor, labelText, alignment) {
+            const label = this.add.text(x, y, labelText, {
+                fontFamily: "monospace",
+                fontSize: "18px",
+                color: "#ffffff"
+            });
+            label.setScrollFactor(0);
+            label.setOrigin(alignment === "right" ? 1 : 0, 0);
+
+            const bars = [];
+            for (let index = 0; index < namespace.CONFIG.boost_economy.max_bars; index += 1) {
+                const barX = alignment === "right"
+                    ? x - 120 - (index * 28)
+                    : x + 120 + (index * 28);
+                const bar = this.add.rectangle(barX, y + 10, 20, 20, accentColor);
+                bar.setScrollFactor(0);
+                bar.setStrokeStyle(2, 0xffffff);
+                bar.setData("accentColor", accentColor);
+                bars.push(bar);
+            }
+
+            this.boostRows[playerNumber] = {
+                label,
+                bars
+            };
+        }
+
+        setBoostRow(playerNumber, charges) {
+            const row = this.boostRows[playerNumber];
+            if (!row) {
+                return;
+            }
+
+            row.bars.forEach((bar, index) => {
+                const isFilled = index < charges;
+                bar.setAlpha(isFilled ? 1 : 0.18);
+                bar.setFillStyle(bar.getData("accentColor"), isFilled ? 1 : 0.18);
+            });
+        }
+
+        onBoostChanged(event) {
+            this.setBoostRow(event.player, event.charges);
         }
     }
 
