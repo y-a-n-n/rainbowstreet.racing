@@ -4,12 +4,25 @@
         player.body.setMaxVelocity(namespace.CONFIG.base_movement.max_speed_px_s, 2000);
     }
 
-    function handleMovement(player, keys, modifier = 1) {
+    function handleMovement(player, keys, modifier = 1, matchState = namespace.MATCH_STATE.RACING) {
         const acceleration = namespace.CONFIG.base_movement.acceleration_px_s * modifier;
         const maxSpeed = namespace.CONFIG.base_movement.max_speed_px_s * modifier;
         const isGrounded = player.body.blocked.down || player.body.touching.down;
 
         player.body.setMaxVelocity(maxSpeed, 2000);
+
+        if (matchState !== namespace.MATCH_STATE.RACING) {
+            player.body.setAccelerationX(0);
+
+            if (matchState === namespace.MATCH_STATE.FINISHED && isGrounded) {
+                player.body.setVelocityX(player.body.velocity.x * namespace.CONFIG.base_movement.friction_ground);
+                if (Math.abs(player.body.velocity.x) < 5) {
+                    player.body.setVelocityX(0);
+                }
+            }
+
+            return;
+        }
 
         if (keys.accel.isDown) {
             player.body.setAccelerationX(acceleration);

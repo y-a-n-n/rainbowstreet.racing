@@ -23,6 +23,12 @@
             vertical_trigger_overlap_px: 10,
             attacker_rebound_velocity_y_px_s: -500
         },
+        start_sequence: {
+            countdown_seconds: 3,
+            perfect_launch_window_ms: 150,
+            perfect_launch_multiplier: 1.5
+        },
+        match_duration_ms: 300000,
         track_system: {
             pool_size_per_type: 20,
             recycle_threshold_px: 2400,
@@ -80,6 +86,21 @@
         SPLITTING: "SPLITTING"
     };
 
+    const MATCH_STATE = {
+        WAITING: "WAITING",
+        COUNTDOWN: "COUNTDOWN",
+        RACING: "RACING",
+        FINISHED: "FINISHED"
+    };
+
     namespace.CONFIG = CONFIG;
     namespace.CAMERA_STATE = CAMERA_STATE;
+    namespace.MATCH_STATE = MATCH_STATE;
+    namespace.formatMatchTime = function formatMatchTime(millisecondsRemaining) {
+        const totalSeconds = Math.max(0, Math.ceil(millisecondsRemaining / 1000));
+        const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
+        const seconds = String(totalSeconds % 60).padStart(2, "0");
+
+        return `${minutes}:${seconds}`;
+    };
 })(window.RainbowStreet = window.RainbowStreet || {});

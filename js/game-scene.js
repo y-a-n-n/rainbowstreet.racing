@@ -4,6 +4,13 @@
             super("GameScene");
             this.cameraController = null;
             this.trackManager = null;
+            this.matchState = namespace.MATCH_STATE.WAITING;
+            this.countdownSteps = [];
+            this.countdownIndex = 0;
+            this.countdownText = "";
+            this.matchEndTime = 0;
+            this.remainingMatchTimeMs = namespace.CONFIG.match_duration_ms;
+            this.winnerText = "";
         }
 
         preload() {
@@ -20,13 +27,15 @@
             this.logStartupPositions();
 
             this.scene.launch("UIScene");
+            this.beginMatchCountdown();
         }
 
         update() {
-            namespace.handleMovement(this.player1, this.p1Keys);
-            namespace.handleMovement(this.player2, this.p2Keys);
+            namespace.handleMovement(this.player1, this.p1Keys, 1, this.matchState);
+            namespace.handleMovement(this.player2, this.p2Keys, 1, this.matchState);
             this.trackManager.update();
             this.cameraController.update();
+            this.updateMatchClock();
         }
 
         setupWorld() {
@@ -39,9 +48,10 @@
 
         setupPlayers() {
             this.player1 = this.add.sprite(200, 500, "player1-unicorn");
-            this.player1.setScale(0.22);
+            this.player1.setScale(0.34);
+            this.player1.setOrigin(0.5, 0.72);
             this.physics.add.existing(this.player1);
-            this.player1.body.setSize(96, 48, true);
+            this.player1.body.setSize(112, 44, true);
             namespace.setupPlayerPhysics(this.player1);
 
             this.player2 = this.add.rectangle(900, 500, 120, 60, 0xff7f50);
@@ -139,6 +149,75 @@
             this.trackManager.hideObstacle(obstacle);
         }
 
+        beginMatchCountdown() {
+            this.matchState = namespace.MATCH_STATE.COUNTDOWN;
+            this.countdownSteps = ["3", "2", "1", "GO!"];
+            this.countdownIndex = 0;
+            this.countdownText = this.countdownSteps[0];
+            this.winnerText = "";
+            this.remainingMatchTimeMs = namespace.CONFIG.match_duration_ms;
+
+            this.events.emit("match-state-changed", this.getMatchDebugState());
+            this.events.emit("countdown-changed", this.countdownText);
+            this.events.emit("match-time-updated", namespace.formatMatchTime(this.remainingMatchTimeMs));
+
+            this.scheduleNextCountdownStep();
+        }
+
+        scheduleNextCountdownStep() {
+            if (this.countdownIndex >= this.countdownSteps.length - 1) {
+                this.time.delayedCall(1000, () => this.startRace());
+                return;
+            }
+
+            this.time.delayedCall(1000, () => {
+                this.countdownIndex += 1;
+                this.countdownText = this.countdownSteps[this.countdownIndex];
+                this.events.emit("countdown-changed", this.countdownText);
+                this.scheduleNextCountdownStep();
+            });
+        }
+
+        startRace() {
+            if (this.matchState === namespace.MATCH_STATE.RACING) {
+                return;
+            }
+
+            this.matchState = namespace.MATCH_STATE.RACING;
+            this.matchEndTime = this.time.now + namespace.CONFIG.match_duration_ms;
+            this.remainingMatchTimeMs = namespace.CONFIG.match_duration_ms;
+
+            this.events.emit("match-state-changed", this.getMatchDebugState());
+            this.events.emit("countdown-changed", "");
+            this.events.emit("match-time-updated", namespace.formatMatchTime(this.remainingMatchTimeMs));
+        }
+
+        updateMatchClock() {
+            if (this.matchState !== namespace.MATCH_STATE.RACING) {
+                return;
+            }
+
+            this.remainingMatchTimeMs = Math.max(0, this.matchEndTime - this.time.now);
+            this.events.emit("match-time-updated", namespace.formatMatchTime(this.remainingMatchTimeMs));
+
+            if (this.remainingMatchTimeMs <= 0) {
+                this.finishRace();
+            }
+        }
+
+        finishRace() {
+            if (this.matchState === namespace.MATCH_STATE.FINISHED) {
+                return;
+            }
+
+            this.matchState = namespace.MATCH_STATE.FINISHED;
+            const winner = this.player1.x >= this.player2.x ? "PLAYER 1" : "PLAYER 2";
+            this.winnerText = `${winner} WINS!`;
+
+            this.events.emit("match-state-changed", this.getMatchDebugState());
+            this.events.emit("match-finished", this.winnerText);
+        }
+
         logStartupPositions() {
             const playerPositions = [
                 {
@@ -160,6 +239,16 @@
 
         getCameraDebugState() {
             return this.cameraController.getDebugState();
+        }
+
+        getMatchDebugState() {
+            return {
+                state: this.matchState,
+                countdownText: this.countdownText,
+                timerText: namespace.formatMatchTime(this.remainingMatchTimeMs),
+                remainingMatchTimeMs: this.remainingMatchTimeMs,
+                winnerText: this.winnerText
+            };
         }
     }
 
