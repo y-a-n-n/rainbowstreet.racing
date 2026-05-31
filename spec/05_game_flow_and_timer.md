@@ -2,7 +2,7 @@
 
 ## 1. Architectural Overview
 
-Currently, the game loads directly into an active physics state. A proper competitive arcade game requires a structured lifecycle: Pre-Race (Countdown), Active Racing, and Race Over (Results). Furthermore, the 5-minute win condition needs to be tracked and evaluated.
+Currently, the game loads directly into an active physics state. A proper competitive arcade game requires a structured lifecycle: Pre-Race (Countdown), Active Racing, and Race Over (Results). Furthermore, the 2-minute win condition needs to be tracked and evaluated.
 
 ## 2. Goals & Requirements
 
@@ -18,7 +18,7 @@ Based on `CONFIG.start_sequence` & Global rules:
 * `countdown_seconds`: 3
 * `perfect_launch_window_ms`: 150
 * `perfect_launch_multiplier`: 1.5
-* `match_duration_seconds`: 300 (5 minutes)
+* `match_duration_seconds`: 120 (2 inutes)
 
 ## 4. Implementation Steps
 
@@ -42,7 +42,7 @@ Based on `CONFIG.start_sequence` & Global rules:
 
 ### Phase 3: Match Timer & Win Condition
 
-* [ ] Once state is `RACING`, start a 5-minute countdown timer.
+* [ ] Once state is `RACING`, start a 2-minute countdown timer.
 * [ ] Pass the formatted time `MM:SS` to the `UIScene` to display at the top center of the screen.
 * [ ] When the timer hits `00:00`:
 * Set `MATCH_STATE = FINISHED`.
