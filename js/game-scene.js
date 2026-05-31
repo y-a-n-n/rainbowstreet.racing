@@ -11,6 +11,20 @@
             this.matchEndTime = 0;
             this.remainingMatchTimeMs = namespace.CONFIG.match_duration_ms;
             this.winnerText = "";
+            this.catchUpState = {
+                active: false,
+                leader: null,
+                trailer: null,
+                distanceX: 0,
+                modifiers: {
+                    1: { accelerationModifier: 1, speedModifier: 1 },
+                    2: { accelerationModifier: 1, speedModifier: 1 }
+                },
+                regenProgressMs: {
+                    1: 0,
+                    2: 0
+                }
+            };
         }
 
         preload() {
@@ -30,9 +44,10 @@
             this.beginMatchCountdown();
         }
 
-        update() {
-            namespace.handleMovement(this.player1, this.p1Keys, 1, this.matchState);
-            namespace.handleMovement(this.player2, this.p2Keys, 1, this.matchState);
+        update(time, delta) {
+            this.updateCatchUpState(delta);
+            namespace.handleMovement(this.player1, this.p1Keys, this.catchUpState.modifiers[1], this.matchState);
+            namespace.handleMovement(this.player2, this.p2Keys, this.catchUpState.modifiers[2], this.matchState);
             this.trackManager.update();
             this.cameraController.update();
             this.updateMatchClock();
@@ -189,9 +204,14 @@
                 return cappedCharges;
             }
 
+            const playerNumber = this.getPlayerNumber(player);
             player.boostCharges = cappedCharges;
+            if (cappedCharges >= namespace.CONFIG.boost_economy.max_bars) {
+                this.catchUpState.regenProgressMs[playerNumber] = 0;
+            }
+
             this.events.emit("boost-changed", {
-                player: this.getPlayerNumber(player),
+                player: playerNumber,
                 charges: cappedCharges
             });
 
@@ -211,6 +231,59 @@
             }
 
             return nextCharges;
+        }
+
+        updateCatchUpState(delta = 0) {
+            const config = namespace.CONFIG.catch_up_system;
+            const deltaX = this.player1.x - this.player2.x;
+            const distanceX = Math.abs(deltaX);
+            const leader = deltaX >= 0 ? 1 : 2;
+            const trailer = leader === 1 ? 2 : 1;
+            const isActive = this.matchState === namespace.MATCH_STATE.RACING
+                && distanceX > config.activation_distance_px;
+            const accelerationBonus = 1 + (config.trailing_accel_bonus_percent / 100);
+            const speedBonus = 1 + (config.trailing_speed_bonus_percent / 100);
+
+            this.catchUpState.active = isActive;
+            this.catchUpState.leader = isActive ? leader : null;
+            this.catchUpState.trailer = isActive ? trailer : null;
+            this.catchUpState.distanceX = distanceX;
+            this.catchUpState.modifiers[1] = { accelerationModifier: 1, speedModifier: 1 };
+            this.catchUpState.modifiers[2] = { accelerationModifier: 1, speedModifier: 1 };
+
+            if (isActive) {
+                this.catchUpState.modifiers[trailer] = {
+                    accelerationModifier: accelerationBonus,
+                    speedModifier: speedBonus
+                };
+                this.updateTrailingBoostRegen(trailer, delta);
+            }
+
+            this.events.emit("catch-up-changed", this.getCatchUpDebugState());
+        }
+
+        updateTrailingBoostRegen(playerNumber, delta) {
+            const player = playerNumber === 1 ? this.player1 : this.player2;
+            const config = namespace.CONFIG.catch_up_system;
+
+            if (player.boostCharges >= namespace.CONFIG.boost_economy.max_bars) {
+                this.catchUpState.regenProgressMs[playerNumber] = 0;
+                return;
+            }
+
+            this.catchUpState.regenProgressMs[playerNumber] += delta;
+
+            while (
+                this.catchUpState.regenProgressMs[playerNumber] >= config.trailing_passive_regen_ms
+                && player.boostCharges < namespace.CONFIG.boost_economy.max_bars
+            ) {
+                this.catchUpState.regenProgressMs[playerNumber] -= config.trailing_passive_regen_ms;
+                this.awardBoostCharge(player);
+            }
+
+            if (player.boostCharges >= namespace.CONFIG.boost_economy.max_bars) {
+                this.catchUpState.regenProgressMs[playerNumber] = 0;
+            }
         }
 
         getPlayerNumber(player) {
@@ -373,6 +446,21 @@
                     charges: this.player2.boostCharges,
                     state: this.player2.state
                 }
+            };
+        }
+
+        getCatchUpDebugState() {
+            const regenDuration = namespace.CONFIG.catch_up_system.trailing_passive_regen_ms;
+
+            return {
+                active: this.catchUpState.active,
+                leader: this.catchUpState.leader,
+                trailer: this.catchUpState.trailer,
+                distanceX: this.catchUpState.distanceX,
+                player1Progress: this.catchUpState.regenProgressMs[1] / regenDuration,
+                player2Progress: this.catchUpState.regenProgressMs[2] / regenDuration,
+                player1Modifiers: this.catchUpState.modifiers[1],
+                player2Modifiers: this.catchUpState.modifiers[2]
             };
         }
     }

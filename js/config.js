@@ -35,7 +35,13 @@
             starting_bars: 2,
             jump_clearance_reward: 1
         },
-        match_duration_ms: 120,
+        catch_up_system: {
+            activation_distance_px: 600,
+            trailing_speed_bonus_percent: 10,
+            trailing_accel_bonus_percent: 10,
+            trailing_passive_regen_ms: 15000
+        },
+        match_duration_ms: 120000,
         track_system: {
             floor_segment_count: 4,
             pool_size_per_type: 20,

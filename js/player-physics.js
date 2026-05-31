@@ -18,6 +18,20 @@
         return player.scene.startPlayerBoost(player);
     }
 
+    function normalizeMovementModifier(modifier) {
+        if (typeof modifier === "number") {
+            return {
+                accelerationModifier: modifier,
+                speedModifier: modifier
+            };
+        }
+
+        return {
+            accelerationModifier: modifier?.accelerationModifier ?? 1,
+            speedModifier: modifier?.speedModifier ?? 1
+        };
+    }
+
     function handleMovement(player, keys, modifier = 1, matchState = namespace.MATCH_STATE.RACING) {
         const isGrounded = player.body.blocked.down || player.body.touching.down;
 
@@ -36,9 +50,10 @@
 
         const boostActivated = Phaser.Input.Keyboard.JustDown(keys.boost) && tryActivateBoost(player);
         const boostMultiplier = player.state === "BOOSTING" ? namespace.CONFIG.boost_economy.speed_multiplier : 1;
-        const effectiveModifier = modifier * boostMultiplier;
-        const acceleration = namespace.CONFIG.base_movement.acceleration_px_s * effectiveModifier;
-        const maxSpeed = namespace.CONFIG.base_movement.max_speed_px_s * effectiveModifier;
+        const movementModifier = normalizeMovementModifier(modifier);
+        const acceleration =
+            namespace.CONFIG.base_movement.acceleration_px_s * movementModifier.accelerationModifier * boostMultiplier;
+        const maxSpeed = namespace.CONFIG.base_movement.max_speed_px_s * movementModifier.speedModifier * boostMultiplier;
 
         player.body.setMaxVelocity(maxSpeed, 2000);
 

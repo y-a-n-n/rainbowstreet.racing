@@ -68,6 +68,7 @@
             this.gameScene.events.on("match-finished", this.showResultText, this);
             this.gameScene.events.on("boost-changed", this.onBoostChanged, this);
             this.gameScene.events.on("boost-refilled", this.onBoostRefilled, this);
+            this.gameScene.events.on("catch-up-changed", this.onCatchUpChanged, this);
 
             this.syncFromGameScene();
         }
@@ -95,6 +96,8 @@
             const boostState = this.gameScene.getBoostDebugState();
             this.setBoostRow(1, boostState.player1.charges);
             this.setBoostRow(2, boostState.player2.charges);
+
+            this.onCatchUpChanged(this.gameScene.getCatchUpDebugState());
         }
 
         syncMatchState(matchState) {
@@ -127,6 +130,15 @@
             label.setOrigin(alignment === "right" ? 1 : 0, 0);
 
             const bars = [];
+            const progressX = alignment === "right" ? x - 120 : x + 120;
+            const progressBack = this.add.circle(progressX, y + 10, 14, accentColor, 0.08);
+            progressBack.setScrollFactor(0);
+            progressBack.setStrokeStyle(2, 0xffffff, 0.15);
+
+            const progressArc = this.add.arc(progressX, y + 10, 14, -90, -90, false, accentColor, 0.22);
+            progressArc.setScrollFactor(0);
+            progressArc.setStrokeStyle(3, accentColor, 0.7);
+
             for (let index = 0; index < namespace.CONFIG.boost_economy.max_bars; index += 1) {
                 const barX = alignment === "right"
                     ? x - 120 - (index * 28)
@@ -140,7 +152,10 @@
 
             this.boostRows[playerNumber] = {
                 label,
-                bars
+                bars,
+                progressBack,
+                progressArc,
+                charges: 0
             };
         }
 
@@ -150,6 +165,7 @@
                 return;
             }
 
+            row.charges = charges;
             row.bars.forEach((bar, index) => {
                 const isFilled = index < charges;
                 bar.setAlpha(isFilled ? 1 : 0.18);
@@ -163,6 +179,30 @@
 
         onBoostRefilled(event) {
             this.flashBoostRow(event.player);
+        }
+
+        onCatchUpChanged(event) {
+            this.setRegenProgress(1, event.player1Progress, event.active && event.trailer === 1);
+            this.setRegenProgress(2, event.player2Progress, event.active && event.trailer === 2);
+        }
+
+        setRegenProgress(playerNumber, progress, isActiveTrailer) {
+            const row = this.boostRows[playerNumber];
+            if (!row) {
+                return;
+            }
+
+            const clampedProgress = Phaser.Math.Clamp(progress, 0, 1);
+            const nextBarIndex = Phaser.Math.Clamp(row.charges, 0, row.bars.length - 1);
+            const nextBar = row.bars[nextBarIndex];
+            const endAngle = -90 + (360 * clampedProgress);
+            row.progressBack.setPosition(nextBar.x, nextBar.y);
+            row.progressArc.setPosition(nextBar.x, nextBar.y);
+            row.progressArc.setEndAngle(endAngle);
+            row.progressBack.setAlpha(clampedProgress > 0 || isActiveTrailer ? 1 : 0);
+            row.progressArc.setAlpha(isActiveTrailer ? 0.95 : 0.35);
+            row.progressArc.setVisible(clampedProgress > 0 || isActiveTrailer);
+            row.progressBack.setVisible(clampedProgress > 0 || isActiveTrailer);
         }
 
         flashBoostRow(playerNumber) {
