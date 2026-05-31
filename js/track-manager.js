@@ -97,6 +97,7 @@
 
         recycleChunksIfNeeded() {
             const leadingPlayerX = Math.max(...this.players.map((player) => player.x));
+            const trailingPlayerX = Math.min(...this.players.map((player) => player.x));
 
             let didRecycle = true;
             while (didRecycle) {
@@ -107,14 +108,34 @@
                 );
                 const rearChunk = sortedChunks[0];
                 const frontChunk = sortedChunks[sortedChunks.length - 1];
+                const rearChunkEnd = rearChunk.getData("chunkStart") + namespace.CONFIG.world.width_px;
                 const recycleThreshold = frontChunk.getData("chunkStart") + (namespace.CONFIG.world.width_px / 2);
+                const rearChunkIsBehindAllPlayers =
+                    rearChunkEnd < trailingPlayerX - namespace.CONFIG.track_system.recycle_threshold_px;
 
                 if (leadingPlayerX >= recycleThreshold) {
                     const nextChunkStart = frontChunk.getData("chunkStart") + namespace.CONFIG.world.width_px;
+                    if (!rearChunkIsBehindAllPlayers) {
+                        this.addChunk(nextChunkStart);
+                        didRecycle = true;
+                        continue;
+                    }
+
                     this.moveChunk(rearChunk, nextChunkStart);
                     didRecycle = true;
                 }
             }
+        }
+
+        addChunk(nextChunkStart) {
+            const chunk = this.scene.createFloorSegment(nextChunkStart);
+            this.floorSegments.push(chunk);
+
+            for (const player of this.players) {
+                this.scene.physics.add.collider(player, chunk);
+            }
+
+            this.populateChunk(chunk);
         }
 
         moveChunk(chunk, nextChunkStart) {

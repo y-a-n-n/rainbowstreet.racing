@@ -39,11 +39,16 @@
         }
 
         setupWorld() {
-            this.physics.world.setBounds(0, 0, namespace.CONFIG.world.width_px * 2, namespace.CONFIG.world.height_px);
-            this.floorSegments = [
-                this.createFloorSegment(0),
-                this.createFloorSegment(namespace.CONFIG.world.width_px)
-            ];
+            const floorSegmentCount = namespace.CONFIG.track_system.floor_segment_count;
+            this.physics.world.setBounds(
+                0,
+                0,
+                namespace.CONFIG.world.width_px * floorSegmentCount,
+                namespace.CONFIG.world.height_px
+            );
+            this.floorSegments = Array.from({ length: floorSegmentCount }, (_, index) =>
+                this.createFloorSegment(namespace.CONFIG.world.width_px * index)
+            );
         }
 
         setupPlayers() {

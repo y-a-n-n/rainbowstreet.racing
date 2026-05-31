@@ -35,8 +35,9 @@
             starting_bars: 2,
             jump_clearance_reward: 1
         },
-        match_duration_ms: 300000,
+        match_duration_ms: 120,
         track_system: {
+            floor_segment_count: 4,
             pool_size_per_type: 20,
             recycle_threshold_px: 2400,
             seed: "rainbow-street-track-v1"
